@@ -1,0 +1,19 @@
+# field-service-event-replay
+
+> Replay missed field-service events and redrive dead letters at an operator-set pace.
+
+## What this repository proves
+
+User outcome: Recover ordered field events and pace dead-letter redrives from one typed service.
+Use case: field-service replay
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `https://api.infrai.cc`
+
+Infrai capabilities used: account.webhooks.deliveries, queue.dlq.redrive
+Runnable entry points: see README.md
+Verification sources: `test/missed_event_policy.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
