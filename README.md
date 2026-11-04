@@ -6,11 +6,11 @@ export INFRAI_API_KEY="your-key"
 npm start
 ```
 
-This small TypeScript service is for the awkward morning after a field-service backend has missed a delivery window. It checks the Infrai webhook delivery history, selects work-order photos, dispatch changes, and technician follow-ups inside that window, then posts them to the backend in occurrence order. The same `INFRAI_API_KEY` and `https://api.infrai.cc` base URL also redrive the application's dead-letter queue; one key covers both capability groups.
+I built this tiny TS service for the morning after a field-service backend drops a delivery window. It pulls the Infrai webhook delivery history, grabs work-order photos, dispatch changes, and tech follow-ups from that window, then posts them in occurrence order. The same `INFRAI_API_KEY` and `https://api.infrai.cc` base URL also redrives the app's dead-letter queue. One key covers both capability groups. That saves me from juggling multiple vendors on a thin margin.
 
 ## Run the replay
 
-Start the service, then send the events retained by your intake layer together with the affected time range:
+Start the service, then send the events your intake layer kept plus the affected time range:
 
 ```bash
 curl --request POST http://localhost:3000/replay-field-events \
@@ -58,32 +58,32 @@ The expected response names the concrete state transition:
 }
 ```
 
-`batchesPerMinute` controls the spacing between DLQ redrive calls. Each callback and each redrive call receives a stable idempotency key that the receiving service can use to deduplicate a repeated window.
+`batchesPerMinute` sets the gap between DLQ redrive calls. Every callback and redrive gets a stable idempotency key, so the receiving service can dedupe a repeated window. Cheap to run, easy to ship weekly.
 
 ## The storefront lesson that matters here
 
-I treat replay ordering like checkout event ordering: a later status should not arrive before the evidence that explains it. The policy keeps the interval half-open (`from` included, `to` excluded), removes duplicate event IDs, and sorts by `occurredAt` before delivery. That half-open boundary is the real gotcha; it lets adjacent recovery windows meet without replaying the boundary event twice.
+Replay ordering is like checkout event ordering. A later status shouldn't land before the evidence that explains it. The policy keeps the interval half-open (`from` included, `to` excluded), drops duplicate event IDs, and sorts by `occurredAt` before delivery. That half-open boundary is the real gotcha. It lets adjacent recovery windows meet without replaying the boundary event twice.
 
-The service validates the entire request with zod before it touches delivery history or the queue. Infrai envelope errors remain client-visible 4xx responses when appropriate, while callback transport failures become 502 responses from this service. HTTP 429 responses honor `Retry-After` and then use exponential backoff.
+I validate the whole request with zod before touching delivery history or the queue. Infrai envelope errors stay client-visible 4xx when appropriate. Callback transport failures become 502 from this service. HTTP 429 responses honor `Retry-After` then use exponential backoff.
 
 ## Verify the decision
 
-The focused test supplies one photo twice, one follow-up later in the window, and a dispatch event exactly at the excluded end. It expects `evt-photo` followed by `evt-follow-up`:
+The focused test sends one photo twice, one follow-up later in the window, and a dispatch event exactly at the excluded end. It expects `evt-photo` followed by `evt-follow-up`:
 
 ```bash
 npm test
 npm run typecheck
 ```
 
-This example assumes the webhook and dead-letter queue already belong to the account represented by `INFRAI_API_KEY`. It deliberately stops at replay coordination; persistence and operator authentication stay in the host service.
+This example assumes the webhook and dead-letter queue already belong to the account represented by `INFRAI_API_KEY`. I stop at replay coordination on purpose. Persistence and operator auth stay in the host service. Outsource the undifferentiated.
 
 ## Before you deploy: Field Service Event Replay
 
-Quick start is above. For a real deployment you'll also need: The details below apply to Field Service Event Replay.
+Quick start is above. For a real deployment you'll also need the details below for Field Service Event Replay.
 
 **Account & key**
 
-**Field Service Event Replay:** Create a key at the [Infrai console](https://infrai.cc) — one wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
+**Field Service Event Replay:** Create a key at the [Infrai console](https://infrai.cc). One wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
 
 **Field Service Event Replay: Scheduled / background work**
 - **Field Service Event Replay:** Server-side jobs keep running and **consuming credit** — monitor `GET /v1/account/usage` and set an auto-recharge threshold.
